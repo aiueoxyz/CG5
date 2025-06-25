@@ -1,17 +1,16 @@
+#include "IndexBuffer.h"
 #include "KamataEngine.h"
+#include "PipelineState.h"
+#include "RootSignature.h"
+#include "Shader.h"
+#include "VertexBuffer.h"
 #include <Windows.h>
 #include <cassert>
-#include "Shader.h"
-#include "RootSignature.h"
-#include "PipelineState.h"
-#include "VertexBuffer.h"
-#include "IndexBuffer.h"
 
 using namespace KamataEngine;
 
 // 関数プロトタイプ宣言
 void SetupPipelineState(PipelineState& pipelineState, RootSignature& rs, Shader& vs, Shader& ps);
-
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
@@ -30,7 +29,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// DirectXCommonクラスが管理している、コマンドリストの取得
 	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
 
-
 	// リソースの確保含め、頂点情報を柔軟に対応できるように VertexData構造体を新たに作成する
 	// Vertex4 → VertexData に変更して利用する
 	struct VertexData {
@@ -39,16 +37,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// 頂点データの準備
 	VertexData vertices[] = {
-	    {0.0f,  0.5f,  0.0f, 0.0f}, // 上
-	    {0.5f,  -0.5f, 0.0f, 0.0f}, // 右下
-	    {-0.5f, -0.5f, 0.0f, 0.0f}, // 左下
+	    {-1.0f, 1.0f,  0.0f, 1.0f}, // 左上
+	    {1.0f,  1.0f,  0.0f, 1.0f}, // 右上
+	    {-1.0f, -1.0f, 0.0f, 1.0f}, // 左下
+	    {1.0f,  -1.0f, 0.0f, 1.0f}, // 右下
 	};
-
 
 	// RootSignature作成 ------------------------------------
 	RootSignature rs;
 	rs.Create();
-
 
 	// 頂点シェーダの読み込みとコンパイル
 	Shader vs;
@@ -60,11 +57,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	ps.LoadDxc(L"Resources/shaders/TestPS.hlsl", L"ps_6_0");
 	assert(ps.GetDxcBlob() != nullptr);
 
-
 	// PipelineState作成 ----------------------------------------------------------------------------------------------------
 	PipelineState pipelineState;
 	SetupPipelineState(pipelineState, rs, vs, ps);
-
 
 	// VertexBuffer(VertexResource, VertexResourceView)の生成
 	VertexBuffer vb;
@@ -78,12 +73,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		pGpuVertices[i] = vertices[i];
 	}
 
-
 	// 頂点インデックスデータの準備
 	uint16_t indices[] = {
-	    0,
-	    1,
-	    2,
+	    0, 1, 2, 1, 3, 2,
 	};
 
 	// IndexBuffer(IndexResource, IndexResourceView)の生成
@@ -98,7 +90,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		pGpuIndices[i] = indices[i];
 	}
 
-
 	// メインループ
 	while (true) {
 		// エンジンの更新
@@ -110,10 +101,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		dxCommon->PreDraw();
 
 		// コマンドを積む
-		commandList->SetGraphicsRootSignature(rs.Get());         // RootSignatureの設定
-		commandList->SetPipelineState(pipelineState.Get());      // PSOの設定する
-		commandList->IASetVertexBuffers(0, 1, vb.GetView());     // VBVの設定する
-		commandList->IASetIndexBuffer(ib.GetView());             // IBVの設定する
+		commandList->SetGraphicsRootSignature(rs.Get());     // RootSignatureの設定
+		commandList->SetPipelineState(pipelineState.Get());  // PSOの設定する
+		commandList->IASetVertexBuffers(0, 1, vb.GetView()); // VBVの設定する
+		commandList->IASetIndexBuffer(ib.GetView());         // IBVの設定する
 		// トポロジの設定
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -148,11 +139,11 @@ void SetupPipelineState(PipelineState& pipelineState, RootSignature& rs, Shader&
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 	// RasterizerState ---------------------------------------
-	 D3D12_RASTERIZER_DESC rasterizerDesc{};
+	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	// 裏面(反時計回り)をカリングする
-	 rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	// 塗りつぶしモードをソリッドにする(ワイヤーフレームなら D3D12_FILL_MODE_WIREFRAME)
-	 rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
 	// PSO(PipelineStateObject)の生成 ---------------------------
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
